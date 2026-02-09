@@ -2,7 +2,8 @@
 from django.urls import path
 from . import views
 
-urlpatterns = [
+
+urlpatterns = [    
     # tracks library
     #path('tracks/', views.TrackListCreate.as_view(),name="track-list"),
     path('tracks/', views.get_tracks, name='get_tracks'),

@@ -3,15 +3,15 @@ from rest_framework import serializers
 from .models import Track, PlaylistTrack
 from django.contrib.auth.models import User
 
-# class UserSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = ['id', 'username', 'email', 'password']
-#         extra_kwargs = {'password': {"write_only": True}}
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'password']
+        extra_kwargs = {'password': {"write_only": True}}
         
-#     def create(self, validated_data):
-#         user = User.objects.create_user(**validated_data)
-#         return user
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
     
 class TrackSerializer(serializers.ModelSerializer):
     """
@@ -35,10 +35,15 @@ class PlaylistTrackSerializer(serializers.ModelSerializer):
     # For write operations, we accept track_id
     track_id = serializers.IntegerField(write_only=True)
     
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    
     class Meta:
         model = PlaylistTrack
         fields = [
             'id', 
+            'user',
+            'user_id',
+            'user_username',
             'track',      # Read: full track object
             'track_id',   # Write: just the ID
             #'position', 

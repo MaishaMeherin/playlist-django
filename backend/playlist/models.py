@@ -30,10 +30,10 @@ class PlaylistTrack(models.Model):
     Tracks currently in the playlist.
     Equivalent to your Prisma PlaylistTrack model.
     """
-    # user = models.ForeignKey(
-    #     User, 
-    #     on_delete=models.CASCADE, related_name='playlist_names'
-    # )
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, related_name='playlist_names'
+    )
     # Relationship to Track
     track = models.ForeignKey(
         Track, 

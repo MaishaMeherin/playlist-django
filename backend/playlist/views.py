@@ -3,21 +3,21 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import api_view, permission_classes
 from django.db import transaction
 from .models import Track
 #from .serializers import TrackSerializer
 from .models import Track, PlaylistTrack
 from django.contrib.auth.models import User
-from .serializers import TrackSerializer, PlaylistTrackSerializer
+from .serializers import UserSerializer, TrackSerializer, PlaylistTrackSerializer
 from .utils import calculate_position
 
 # ####AUTH
-# # POST /api/user/register
-# class CreateUserView(generics.CreateAPIView):
-#     queryset = User.objects.all()
-#     serializer_class = UserSerializer
-#     permission_classes= [AllowAny] 
-    
+# POST /api/user/register
+class CreateUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes= [AllowAny] 
     
 # ####TRACKS
 # #list and create tracks
@@ -67,12 +67,14 @@ from .utils import calculate_position
 #         return PlaylistTrack.objects.filter(user=user)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_tracks(request):
     tracks = Track.objects.all()
     serializer = TrackSerializer(tracks, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_playlist(request):
     """Get current playlist"""
     # select_related('track') = SQL JOIN (prevents N+1 queries)
@@ -81,10 +83,13 @@ def get_playlist(request):
     return Response(serializer.data)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def add_to_playlist(request):
     track_id = request.data.get('track_id')
     track = Track.objects.get(id=track_id)
-    playlist_item = PlaylistTrack.objects.create(track=track)
+    # user_id = request.data.get('user_id')
+    # user = User.objects.get(id=user_id)
+    playlist_item = PlaylistTrack.objects.create(track=track, user=request.user)
     serializer = PlaylistTrackSerializer(playlist_item)
     return Response(serializer.data)
 
