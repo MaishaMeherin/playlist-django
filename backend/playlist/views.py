@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
@@ -6,7 +5,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import api_view, permission_classes
 from django.db import transaction
 from .models import Track
-#from .serializers import TrackSerializer
 from .models import Track, PlaylistTrack
 from django.contrib.auth.models import User
 from .serializers import UserSerializer, TrackSerializer, PlaylistTrackSerializer
@@ -89,10 +87,39 @@ def add_to_playlist(request):
     track = Track.objects.get(id=track_id)
     # user_id = request.data.get('user_id')
     # user = User.objects.get(id=user_id)
+    if PlaylistTrack.objects.filter(track_id=track_id).exists():
+        return Response({"error": "Track already in playlist"})
+    
     playlist_item = PlaylistTrack.objects.create(track=track, user=request.user)
     serializer = PlaylistTrackSerializer(playlist_item)
     return Response(serializer.data)
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_from_playlist(request, pk):
+    playlist_item = PlaylistTrack.objects.get(id=pk)
+    playlist_item.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def upvote_on_track(request, pk):
+    playlist_item = PlaylistTrack.objects.get(id=pk)
+    playlist_item.votes += 1
+    playlist_item.save()
+    serializer = PlaylistTrackSerializer(playlist_item)
+    return Response(serializer.data)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def downvote_on_track(request, pk):
+    playlist_item = PlaylistTrack.objects.get(id=pk)
+    playlist_item.votes -= 1
+    playlist_item.save()
+    serializer = PlaylistTrackSerializer(playlist_item)
+    return Response(serializer.data)
+
+    
 # @api_view(['POST'])
 # def add_to_playlist(request):
 #     """

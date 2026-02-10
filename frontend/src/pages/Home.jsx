@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../api";
-import { Button } from "antd";
-import { Card, Space } from "antd";
+import { Button, Card } from "antd";
 
 function Home() {
   const [tracks, setTracks] = useState([]);
@@ -12,78 +11,101 @@ function Home() {
     getPlaylist();
   }, []);
 
-  //api.get('/api/tracks/')
-  // const getTracks = async () => {
-  //     api.get('/api/tracks/').then((res) => res.data).then((data) => {
-  //         setTracks(data);
-  //         console.log(data)
-  //     })
-  // }
-
   const getTracks = async () => {
     const res = await api.get("/api/tracks/");
     setTracks(res.data);
-    console.log(res.data);
   };
 
-  //api.get('/api/playlist/')
   const getPlaylist = async () => {
     const res = await api.get("/api/playlist/");
     setPlaylist(res.data);
-    console.log(playlist);
   };
 
   const addTracksToPlaylist = async (trackId) => {
     const res = await api.post("/api/playlist/add/", { track_id: trackId });
-    //console.log(res.data);
-    //setPlaylist(res.data);
     await getPlaylist();
-    //setPlaylist(res.data);
+  };
+
+  const isInPlaylist = (trackId) =>
+    playlist.some((item) => item.track.id === trackId);
+
+  const deleteFromPlaylist = async (playlistTrackId) => {
+    await api.delete(`/api/playlist/delete/${playlistTrackId}/`);
+    await getPlaylist();
+  };
+
+  const upvotePlaylistTrack = async (playlistTrackId) => {
+    await api.put(`/api/playlist/upvote/${playlistTrackId}/`);
+    await getPlaylist();
+    console.log(playlist);
+  };
+
+  const downvotePlaylistTrack = async (playlistTrackId) => {
+    await api.put(`/api/playlist/downvote/${playlistTrackId}/`);
+    await getPlaylist();
   };
 
   return (
-    <div>
-      <div>
+    <div style={{ display: "flex", gap: "24px", padding: "24px" }}>
+      {/* Left side - Track Library */}
+      <div style={{ flex: 1 }}>
+        <h2>Track Library</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
           {tracks.map((track) => (
-            <div key={track.id}>
-              <Card
-                title={`Song name: ${track.title}`}
-                extra={<a href="#">More</a>}
-                style={{ width: 300 }}
+            <Card key={track.id} title={track.title} style={{ width: 280 }}>
+              <p>Artist: {track.artist}</p>
+              <p>Album: {track.album}</p>
+              <p>Duration: {track.duration_seconds}s</p>
+              <p>Genre: {track.genre}</p>
+              <Button
+                type="primary"
+                onClick={() => addTracksToPlaylist(track.id)}
+                disabled={isInPlaylist(track.id)}
               >
-                <div>{track.title}</div>
-                <div>{track.artist}</div>
-                <div>{track.album}</div>
-                <div>{track.duration_seconds}</div>
-                <div>{track.genre}</div>
-                <div>{track.cover_url}</div>
-                <button onClick={() => addTracksToPlaylist(track.id)}>
-                  Add
-                </button>
-              </Card>
-            </div>
+                Add to Playlist
+              </Button>
+            </Card>
           ))}
         </div>
       </div>
 
-      <div>
+      {/* Right side - Playlist */}
+      <div style={{ flex: 1 }}>
+        <h2>Playlist</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
           {playlist.map((item) => (
-            <div key={item.id}>
-              <Card
-                title={`Song name: ${item.track.title}`}
-                extra={<a href="#">More</a>}
-                style={{ width: 300 }}
+            <Card key={item.id} title={item.track.title} style={{ width: 280 }}>
+              <p>Artist: {item.track.artist}</p>
+              <p>Album: {item.track.album}</p>
+              <p>Duration: {item.track.duration_seconds}s</p>
+              <p>Genre: {item.track.genre}</p>
+              <p>Added by: {item.user_username}</p>
+              <p>Votes: {item.votes}</p>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                <Button
+                  type="primary"
+                  style={{ flex: 1 }}
+                  onClick={() => upvotePlaylistTrack(item.id)}
+                >
+                  Upvote
+                </Button>
+                <Button
+                  type="primary"
+                  style={{ flex: 1 }}
+                  onClick={() => downvotePlaylistTrack(item.id)}
+                >
+                  Downvote
+                </Button>
+              </div>
+              <Button
+                type="primary"
+                danger
+                onClick={() => deleteFromPlaylist(item.id)}
+                style={{ width: "100%" }}
               >
-                <div>{item.track.artist}</div>
-                <div>{item.track.album}</div>
-                <div>{item.track.duration_seconds}</div>
-                <div>{item.track.genre}</div>
-                <div>{item.track.cover_url}</div>
-                <div>Added by: {item.user_username}</div>
-              </Card>
-            </div>
+                Delete
+              </Button>
+            </Card>
           ))}
         </div>
       </div>

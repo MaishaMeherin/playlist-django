@@ -32,8 +32,8 @@ class PlaylistTrackSerializer(serializers.ModelSerializer):
     # Nested serializer - includes full track details
     track = TrackSerializer(read_only=True)
     
-    # For write operations, we accept track_id
-    track_id = serializers.IntegerField(write_only=True)
+    # # For write operations, we accept track_id
+    # track_id = serializers.IntegerField(write_only=True)
     
     user_username = serializers.CharField(source='user.username', read_only=True)
     

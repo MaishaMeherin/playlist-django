@@ -14,8 +14,10 @@ urlpatterns = [
     
     path('playlist/', views.get_playlist, name="get_playlist"),
     path('playlist/add/', views.add_to_playlist, name='add_to_playlist'),
+    path('playlist/delete/<int:pk>/', views.delete_from_playlist, name='delete_playlist'),
+    path('playlist/upvote/<int:pk>/', views.upvote_on_track, name="upvote_track"),
+    path('playlist/downvote/<int:pk>/', views.downvote_on_track, name="downvote_track"),
     # path('playlist/<int:pk>/', views.update_playlist_item),
     # path('playlist/<int:pk>/vote', views.vote_on_track),
-    # path('playlist/<int:pk>/delete', views.delete_track),
     #path('playlist/<int:pk>/reorder', views.reorder_playlist_item)
 ]

@@ -53,4 +53,4 @@ class PlaylistTrack(models.Model):
 #         #unique_togther = ['user', 'track'] #prevent duplicate tracks per user
         
     def __str__(self):
-        return f"{self.track.title} at position {self.position}"
+        return f"{self.track.title} (added by {self.user.username})"
