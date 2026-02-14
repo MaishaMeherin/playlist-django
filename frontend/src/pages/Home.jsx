@@ -22,7 +22,7 @@ function Home() {
   };
 
   const addTracksToPlaylist = async (trackId) => {
-    const res = await api.post("/api/playlist/add/", { track_id: trackId });
+    const res = await api.post("/api/playlist/", { track_id: trackId });
     await getPlaylist();
   };
 
@@ -34,11 +34,15 @@ function Home() {
     await getPlaylist();
   };
 
-  const upvotePlaylistTrack = async (playlistTrackId) => {
-    await api.put(`/api/playlist/upvote/${playlistTrackId}/`);
+  const upvotePlaylistTrack = async (playlistTrackId, userId) => {
+    await api.put(`/api/playlist/upvote/${playlistTrackId}/`, { user_id : userId });
     await getPlaylist();
     console.log(playlist);
   };
+
+  // const isAlreadyUpvoted = (userId) => {
+  //   playlist.some((item) => item.user.id === userId);
+  // }
 
   const downvotePlaylistTrack = async (playlistTrackId) => {
     await api.put(`/api/playlist/downvote/${playlistTrackId}/`);
@@ -85,7 +89,8 @@ function Home() {
                 <Button
                   type="primary"
                   style={{ flex: 1 }}
-                  onClick={() => upvotePlaylistTrack(item.id)}
+                  onClick={() => upvotePlaylistTrack(item.id, item.user.id)}
+                  disabled={item.has_voted}
                 >
                   Upvote
                 </Button>

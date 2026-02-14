@@ -1,8 +1,8 @@
 from django.contrib import admin
-#from .models import Track, PlaylistTrack
+from .models import Track, PlaylistTrack, Vote
 
 # # Register your models here.
-# @admin.register(Track)
+admin.site.register(Track)
 # class TrackAdmin(admin.ModelAdmin):
 #     """
 #         Configure how Track appears in admin panel.Like building a custom admin UI, but Django does it for you!
@@ -22,7 +22,8 @@ from django.contrib import admin
 #         list_per_page = 50
 #     """
     
-# @admin.register(PlaylistTrack)
+admin.site.register(PlaylistTrack)
+admin.site.register(Vote)
 # class PlaylistTrackAdmin(admin.ModelAdmin):
 #     """
 #         Configure how PlaylistTrack appears in admin panel.

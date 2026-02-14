@@ -1,11 +1,11 @@
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import api_view, permission_classes
 from django.db import transaction
-from .models import Track
-from .models import Track, PlaylistTrack
+from .models import Track, PlaylistTrack, Vote
+from django.db.models import Exists, OuterRef
 from django.contrib.auth.models import User
 from .serializers import UserSerializer, TrackSerializer, PlaylistTrackSerializer
 from .utils import calculate_position
@@ -16,108 +16,139 @@ class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes= [AllowAny] 
-    
-# ####TRACKS
-# #list and create tracks
-# ##GET /tracks/ => return the tracks of the entire database
-# class TrackListCreate(generics.ListCreateAPIView):
-#     queryset = Track.objects.all()
-#     serializer_class = TrackSerializer
-#     permission_classes = [AllowAny]
-    
-# ####PLAYLIST
-# #add to playlist
-# ## GET /api/playlist = list's users playlist
-# ## POST /api/playlist = Add track to users playlist
-# class PlaylistTrackListCreate(generics.ListCreateAPIView):
-#     serializer_class = PlaylistTrackSerializer
-#     permission_classes = [IsAuthenticated]
-    
-#     def get_queryset(self):
-#         #filter query by user
-#         user = self.request.user
-#         return PlaylistTrack.objects.filter(user=user)
 
-#     def perform_create(self, serializer):
-#         if serializer.is_valid():
-#             serializer.save(user=self.request.user)
-#         else:
-#             print(serializer.errors) 
+class TrackListView(APIView):
+    def get(self, request, format=None):
+        permission_classes=[IsAuthenticated]
+        tracks = Track.objects.all()
+        serializer = TrackSerializer(tracks, many=True)
+        return Response(serializer.data)
+    
+    
+class PlaylistListCreateView(APIView):
+    def get(self, request, format=None):
+        permission_classes=[IsAuthenticated]
+        playlist = PlaylistTrack.objects.select_related('track').annotate(
+            has_voted=Exists(
+                Vote.objects.filter(user=request.user, playlist_track=OuterRef('pk'))
+            )
+        )
+        serializer = PlaylistTrackSerializer(playlist, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        permission_classes=[IsAuthenticated]
+        track_id = request.data.get('track_id')
+        track = Track.objects.get(id=track_id)
+        if PlaylistTrack.objects.filter(track_id=track_id).exists():
+            return Response({"error": "track already in playlist"})
         
-# #PATCH /playlist/<id>
-# class PlaylistTrackUpdateView(generics.UpdateAPIView):
-#     serializer_class = PlaylistTrackSerializer
-#     permission_classes = [IsAuthenticated]
+        playlist_item = PlaylistTrack.objects.create(track=track, user=request.user)
+        serializer = PlaylistTrackSerializer(playlist_item)
+        return Response(serializer.data)
     
-#     #users can only update their own playlist
-#     def get_queryset(self):
-#         user = self.request.user
-#         return PlaylistTrack.objects.filter(user=user)
-
+class PlaylistDetailView(APIView):    
+    def delete(self, reqeust, pk):
+        permission_classes=[IsAuthenticated]
+        playlist_item = PlaylistTrack.objects.get(id=pk)
+        playlist_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
-# #DELETE /playlist/<id>
-# class PlaylistTrackDeleteView(generics.DestroyAPIView):
-#     serializer_class = PlaylistTrackSerializer
-#     permission_classes = [IsAuthenticated]
+class PlaylistUpvoteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        #playlist_item = PlaylistTrack.objects.get(id=pk)
+        playlist_item = PlaylistTrack.objects.annotate(
+            has_voted=Exists(Vote.objects.filter(user=request.user, playlist_track=OuterRef('pk')))
+        ).get(id=pk)
+
+
+
+        if Vote.objects.filter(user=request.user, playlist_track=playlist_item).exists():
+            return Response({"error": "already liked by user"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+        vote_item = Vote.objects.create(user=request.user, playlist_track=playlist_item)
+        playlist_item.votes += 1
+        playlist_item.save()
+        serializer = PlaylistTrackSerializer(playlist_item)
+        
+        return Response(serializer.data)
+
+class PlaylistDownvoteView(APIView):
+    permission_classes=[IsAuthenticated]
     
-#     def get_queryset(self):
-#         user = self.request.user
-#         return PlaylistTrack.objects.filter(user=user)
+    def put(self, request, pk):
+        #playlist_item = PlaylistTrack.objects.get(id=pk)
+        playlist_item = PlaylistTrack.objects.annotate(
+            has_voted=Exists(Vote.objects.filter(user=request.user, playlist_track=OuterRef('pk')))
+        ).get(id=pk)
+        
+        if Vote.objects.filter(user=request.user, playlist_track=playlist_item).exists():
+            return Response({"error": "already liked by user"}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_tracks(request):
-    tracks = Track.objects.all()
-    serializer = TrackSerializer(tracks, many=True)
-    return Response(serializer.data)
+        vote_item = Vote.objects.create(user=request.user, playlist_track=playlist_item)
+        playlist_item.votes -= 1
+        playlist_item.save()
+        serializer = PlaylistTrackSerializer(playlist_item)
+        return Response(serializer.data)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_playlist(request):
-    """Get current playlist"""
-    # select_related('track') = SQL JOIN (prevents N+1 queries)
-    playlist = PlaylistTrack.objects.select_related('track').all()
-    serializer = PlaylistTrackSerializer(playlist, many=True)
-    return Response(serializer.data)
+        
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_tracks(request):
+#     tracks = Track.objects.all()
+#     serializer = TrackSerializer(tracks, many=True)
+#     return Response(serializer.data)
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def add_to_playlist(request):
-    track_id = request.data.get('track_id')
-    track = Track.objects.get(id=track_id)
-    # user_id = request.data.get('user_id')
-    # user = User.objects.get(id=user_id)
-    if PlaylistTrack.objects.filter(track_id=track_id).exists():
-        return Response({"error": "Track already in playlist"})
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_playlist(request):
+#     """Get current playlist"""
+#     # select_related('track') = SQL JOIN (prevents N+1 queries)
+#     playlist = PlaylistTrack.objects.select_related('track').all()
+#     serializer = PlaylistTrackSerializer(playlist, many=True)
+#     return Response(serializer.data)
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def add_to_playlist(request):
+#     track_id = request.data.get('track_id')
+#     track = Track.objects.get(id=track_id)
+#     # user_id = request.data.get('user_id')
+#     # user = User.objects.get(id=user_id)
+#     if PlaylistTrack.objects.filter(track_id=track_id).exists():
+#         return Response({"error": "Track already in playlist"})
     
-    playlist_item = PlaylistTrack.objects.create(track=track, user=request.user)
-    serializer = PlaylistTrackSerializer(playlist_item)
-    return Response(serializer.data)
+#     playlist_item = PlaylistTrack.objects.create(track=track, user=request.user)
+#     serializer = PlaylistTrackSerializer(playlist_item)
+#     return Response(serializer.data)
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_from_playlist(request, pk):
-    playlist_item = PlaylistTrack.objects.get(id=pk)
-    playlist_item.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+# @api_view(['DELETE'])
+# @permission_classes([IsAuthenticated])
+# def delete_from_playlist(request, pk):
+#     playlist_item = PlaylistTrack.objects.get(id=pk)
+#     playlist_item.delete()
+#     return Response(status=status.HTTP_204_NO_CONTENT)
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def upvote_on_track(request, pk):
-    playlist_item = PlaylistTrack.objects.get(id=pk)
-    playlist_item.votes += 1
-    playlist_item.save()
-    serializer = PlaylistTrackSerializer(playlist_item)
-    return Response(serializer.data)
+# @api_view(['PUT'])
+# @permission_classes([IsAuthenticated])
+# def upvote_on_track(request, pk):
+#     playlist_item = PlaylistTrack.objects.get(id=pk)
+#     playlist_item.votes += 1
+#     playlist_item.save()
+#     serializer = PlaylistTrackSerializer(playlist_item)
+#     return Response(serializer.data)
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def downvote_on_track(request, pk):
-    playlist_item = PlaylistTrack.objects.get(id=pk)
-    playlist_item.votes -= 1
-    playlist_item.save()
-    serializer = PlaylistTrackSerializer(playlist_item)
-    return Response(serializer.data)
+# @api_view(['PUT'])
+# @permission_classes([IsAuthenticated])
+# def downvote_on_track(request, pk):
+#     playlist_item = PlaylistTrack.objects.get(id=pk)
+#     playlist_item.votes -= 1
+#     playlist_item.save()
+#     serializer = PlaylistTrackSerializer(playlist_item)
+#     return Response(serializer.data)
 
     
 # @api_view(['POST'])
@@ -276,4 +307,52 @@ def downvote_on_track(request, pk):
 #     if target_index == 0:
 #         prev_pos = None
 #         next_pos = playlist[0][1] 
+
+      
+# ####TRACKS
+# #list and create tracks
+# ##GET /tracks/ => return the tracks of the entire database
+# class TrackListCreate(generics.ListCreateAPIView):
+#     queryset = Track.objects.all()
+#     serializer_class = TrackSerializer
+#     permission_classes = [AllowAny]
+    
+# ####PLAYLIST
+# #add to playlist
+# ## GET /api/playlist = list's users playlist
+# ## POST /api/playlist = Add track to users playlist
+# class PlaylistTrackListCreate(generics.ListCreateAPIView):
+#     serializer_class = PlaylistTrackSerializer
+#     permission_classes = [IsAuthenticated]
+    
+#     def get_queryset(self):
+#         #filter query by user
+#         user = self.request.user
+#         return PlaylistTrack.objects.filter(user=user)
+
+#     def perform_create(self, serializer):
+#         if serializer.is_valid():
+#             serializer.save(user=self.request.user)
+#         else:
+#             print(serializer.errors) 
+        
+# #PATCH /playlist/<id>
+# class PlaylistTrackUpdateView(generics.UpdateAPIView):
+#     serializer_class = PlaylistTrackSerializer
+#     permission_classes = [IsAuthenticated]
+    
+#     #users can only update their own playlist
+#     def get_queryset(self):
+#         user = self.request.user
+#         return PlaylistTrack.objects.filter(user=user)
+
+    
+# #DELETE /playlist/<id>
+# class PlaylistTrackDeleteView(generics.DestroyAPIView):
+#     serializer_class = PlaylistTrackSerializer
+#     permission_classes = [IsAuthenticated]
+    
+#     def get_queryset(self):
+#         user = self.request.user
+#         return PlaylistTrack.objects.filter(user=user)
     

@@ -1,6 +1,6 @@
 # playlist/serializers.py
 from rest_framework import serializers
-from .models import Track, PlaylistTrack
+from .models import Track, PlaylistTrack, Vote
 from django.contrib.auth.models import User
 
 class UserSerializer(serializers.ModelSerializer):
@@ -34,8 +34,13 @@ class PlaylistTrackSerializer(serializers.ModelSerializer):
     
     # # For write operations, we accept track_id
     # track_id = serializers.IntegerField(write_only=True)
+
     
+    user = UserSerializer(read_only=True)
+        
     user_username = serializers.CharField(source='user.username', read_only=True)
+    
+    has_voted = serializers.BooleanField(read_only=True, default=False)
     
     class Meta:
         model = PlaylistTrack
@@ -48,7 +53,15 @@ class PlaylistTrackSerializer(serializers.ModelSerializer):
             'track_id',   # Write: just the ID
             #'position', 
             'votes',  
+            'has_voted',
             'added_at', 
             'is_playing', 
             'played_at'
         ]
+    
+        
+    
+class VoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vote
+        fields = '__all__'

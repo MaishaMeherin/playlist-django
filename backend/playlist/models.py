@@ -14,7 +14,7 @@ class Track(models.Model):
     genre = models.CharField(max_length=50)
     cover_url = models.URLField(blank=True, null=True)
     
-    # Created/updated timestamps (optional but useful)
+    # Created/updated timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -53,4 +53,11 @@ class PlaylistTrack(models.Model):
 #         #unique_togther = ['user', 'track'] #prevent duplicate tracks per user
         
     def __str__(self):
-        return f"{self.track.title} (added by {self.user.username})"
+        return f"{self.track.title}"
+    
+class Vote(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    playlist_track = models.ForeignKey(PlaylistTrack, on_delete=models.CASCADE)
+    
+    #class Meta:
+        #unique_together = ['user', 'playlist_track']

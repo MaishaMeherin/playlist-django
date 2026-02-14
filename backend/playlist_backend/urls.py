@@ -28,5 +28,4 @@ urlpatterns = [
     path("api/token/", TokenObtainPairView.as_view(), name="get_token"),
     path("api/token/refresh/", TokenRefreshView.as_view()),
     path("api-auth/", include("rest_framework.urls")),
-    
 ]
