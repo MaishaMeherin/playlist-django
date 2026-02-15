@@ -1,71 +1,134 @@
 # playlist/management/commands/seed_tracks.py
+import requests
+import time
 from django.core.management.base import BaseCommand
 from playlist.models import Track
 
+JAMENDO_CLIENT_ID = "fbc12aa7"  # Get from https://developer.jamendo.com/v3.0
+
+# Tracks from Jamendo community page
+TRACK_NAMES = [
+    ("All In My Mind", "Aled Edwards"),
+    ("Host", "Color Out"),
+    ("Do I", "Zara Arshakian"),
+    ("Sake Bomb", "Tab"),
+    ("Alone", "Color Out"),
+    ("You'll Be Fine", "ErickFill"),
+    ("Tantalizing Youth", "Social Square"),
+    ("Molotov Heart", "Radio Nowhere"),
+    ("Criminal", "Axl & Arth"),
+    ("Chocolate", "Alfonso Lugo"),
+    ("Blind girl", "Zero-Project"),
+    ("The Deep", "Anitek"),
+    ("Find A Way", "The DLX"),
+    ("No Rest Or Endless Rest", "Lisofv"),
+    ("Work N' Play", "Samie Bower"),
+    ("B U R N", "Bessonn&Sa"),
+    ("Blood", "All My Friends Hate Me"),
+    ("Confession", "Quesabe"),
+    ("Limes", "Little Suspicions"),
+    ("In My Mind", "Laminar"),
+    ("Tiptoe", "Rivers And Leaves"),
+    ("Monday 8am", "Kinematic"),
+    ("Who Called Who", "Samie Bower"),
+    ("A Moment in Time", "Graham Coe"),
+    ("Time Bomb", "The Spin Wires"),
+    ("Fire", "Seth Power"),
+    ("Polaris", "So Far As I Know"),
+    ("What Do You Know", "Explosive Ear Candy"),
+    ("hipnotised", "Nayah"),
+    ("Strong", "Jekk"),
+    ("Crazy Glue", "Melanie Ungar"),
+    ("Out of Air", "Sydney Leigh"),
+    ("Flowers Of September", "The Tangerine Club"),
+    ("Last Song", "The Jaygles"),
+    ("Survive", "Jekk"),
+    ("Talk a Little", "Samie Bower"),
+    ("Roses", "Jekk"),
+    ("Around The Corner", "Infraction"),
+    ("No Prayers", "Pokki DJ"),
+    ("Give Yourself Away", "Mickey Blue"),
+    ("Fallen Star", "AJC & The Envelope Pushers"),
+    ("Constellate", "Fleurie"),
+    ("The Heat", "Sam Garbett"),
+    ("Give U My Name", "Jyant"),
+    ("Two Kids", "The DLX"),
+    ("Lemon Pop", "The Verandas"),
+    ("Flame Up", "ilyab"),
+    ("Falcon 69", "The Easton Ellises"),
+    ("Lover", "Square A Saw"),
+    ("Stay Up", "All My Friends Hate Me"),
+]
+
+
 class Command(BaseCommand):
-    help = 'Seed the database with sample tracks'
+    help = 'Seed the database with tracks from Jamendo API'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--client-id',
+            type=str,
+            help='Jamendo API client ID (overrides the one in the script)',
+        )
 
     def handle(self, *args, **kwargs):
-        # Clear existing tracks
+        client_id = kwargs.get('client_id') or JAMENDO_CLIENT_ID
+
+        if client_id == "your_client_id_here":
+            self.stdout.write(self.style.ERROR(
+                'Set your Jamendo client ID!\n'
+                'Get one free at: https://developer.jamendo.com/v3.0\n'
+                'Then either:\n'
+                '  1. Edit JAMENDO_CLIENT_ID in this file, or\n'
+                '  2. Run: python manage.py seed_tracks --client-id YOUR_ID'
+            ))
+            return
+
         Track.objects.all().delete()
         self.stdout.write('Cleared existing tracks')
 
-        # Sample track data (30 tracks)
-        tracks_data = [
-            # Rock
-            {"title": "Bohemian Rhapsody", "artist": "Queen", "album": "A Night at the Opera", "duration_seconds": 355, "genre": "Rock"},
-            {"title": "Stairway to Heaven", "artist": "Led Zeppelin", "album": "Led Zeppelin IV", "duration_seconds": 482, "genre": "Rock"},
-            {"title": "Hotel California", "artist": "Eagles", "album": "Hotel California", "duration_seconds": 391, "genre": "Rock"},
-            {"title": "Sweet Child O' Mine", "artist": "Guns N' Roses", "album": "Appetite for Destruction", "duration_seconds": 356, "genre": "Rock"},
-            {"title": "Imagine", "artist": "John Lennon", "album": "Imagine", "duration_seconds": 183, "genre": "Rock"},
-            
-            # Pop
-            {"title": "Billie Jean", "artist": "Michael Jackson", "album": "Thriller", "duration_seconds": 294, "genre": "Pop"},
-            {"title": "Like a Prayer", "artist": "Madonna", "album": "Like a Prayer", "duration_seconds": 340, "genre": "Pop"},
-            {"title": "Uptown Funk", "artist": "Mark Ronson ft. Bruno Mars", "album": "Uptown Special", "duration_seconds": 269, "genre": "Pop"},
-            {"title": "Shape of You", "artist": "Ed Sheeran", "album": "÷", "duration_seconds": 234, "genre": "Pop"},
-            {"title": "Blinding Lights", "artist": "The Weeknd", "album": "After Hours", "duration_seconds": 200, "genre": "Pop"},
-            
-            # Electronic
-            {"title": "One More Time", "artist": "Daft Punk", "album": "Discovery", "duration_seconds": 320, "genre": "Electronic"},
-            {"title": "Strobe", "artist": "deadmau5", "album": "For Lack of a Better Name", "duration_seconds": 625, "genre": "Electronic"},
-            {"title": "Levels", "artist": "Avicii", "album": "Levels", "duration_seconds": 203, "genre": "Electronic"},
-            {"title": "Animals", "artist": "Martin Garrix", "album": "Animals", "duration_seconds": 305, "genre": "Electronic"},
-            {"title": "Titanium", "artist": "David Guetta ft. Sia", "album": "Nothing but the Beat", "duration_seconds": 245, "genre": "Electronic"},
-            
-            # Jazz
-            {"title": "Take Five", "artist": "Dave Brubeck", "album": "Time Out", "duration_seconds": 324, "genre": "Jazz"},
-            {"title": "So What", "artist": "Miles Davis", "album": "Kind of Blue", "duration_seconds": 563, "genre": "Jazz"},
-            {"title": "Fly Me to the Moon", "artist": "Frank Sinatra", "album": "It Might as Well Be Swing", "duration_seconds": 148, "genre": "Jazz"},
-            {"title": "Summertime", "artist": "Ella Fitzgerald", "album": "Porgy and Bess", "duration_seconds": 253, "genre": "Jazz"},
-            {"title": "Round Midnight", "artist": "Thelonious Monk", "album": "Genius of Modern Music", "duration_seconds": 188, "genre": "Jazz"},
-            
-            # Classical
-            {"title": "Moonlight Sonata", "artist": "Ludwig van Beethoven", "album": "Piano Sonata No. 14", "duration_seconds": 360, "genre": "Classical"},
-            {"title": "Four Seasons - Spring", "artist": "Antonio Vivaldi", "album": "The Four Seasons", "duration_seconds": 186, "genre": "Classical"},
-            {"title": "Canon in D", "artist": "Johann Pachelbel", "album": "Canon and Gigue", "duration_seconds": 303, "genre": "Classical"},
-            {"title": "Für Elise", "artist": "Ludwig van Beethoven", "album": "Bagatelle No. 25", "duration_seconds": 165, "genre": "Classical"},
-            {"title": "Ride of the Valkyries", "artist": "Richard Wagner", "album": "Die Walküre", "duration_seconds": 315, "genre": "Classical"},
-            
-            # Hip Hop
-            {"title": "Lose Yourself", "artist": "Eminem", "album": "8 Mile Soundtrack", "duration_seconds": 326, "genre": "Hip Hop"},
-            {"title": "HUMBLE.", "artist": "Kendrick Lamar", "album": "DAMN.", "duration_seconds": 177, "genre": "Hip Hop"},
-            {"title": "Juicy", "artist": "The Notorious B.I.G.", "album": "Ready to Die", "duration_seconds": 305, "genre": "Hip Hop"},
-            {"title": "In Da Club", "artist": "50 Cent", "album": "Get Rich or Die Tryin'", "duration_seconds": 253, "genre": "Hip Hop"},
-            {"title": "Sicko Mode", "artist": "Travis Scott", "album": "Astroworld", "duration_seconds": 312, "genre": "Hip Hop"},
-            
-            # Alternative/Indie
-            {"title": "Mr. Brightside", "artist": "The Killers", "album": "Hot Fuss", "duration_seconds": 222, "genre": "Alternative"},
-            {"title": "Radioactive", "artist": "Imagine Dragons", "album": "Night Visions", "duration_seconds": 187, "genre": "Alternative"},
-            {"title": "Seven Nation Army", "artist": "The White Stripes", "album": "Elephant", "duration_seconds": 231, "genre": "Alternative"},
-            {"title": "Do I Wanna Know?", "artist": "Arctic Monkeys", "album": "AM", "duration_seconds": 272, "genre": "Alternative"},
-            {"title": "Boulevard of Broken Dreams", "artist": "Green Day", "album": "American Idiot", "duration_seconds": 261, "genre": "Alternative"},
-        ]
+        created = 0
+        for title, artist in TRACK_NAMES:
+            track_data = self.fetch_from_jamendo(title, artist, client_id)
+            if track_data:
+                Track.objects.create(**track_data)
+                created += 1
+                self.stdout.write(f'  Added: {track_data["title"]} - {track_data["artist"]}')
+            else:
+                self.stdout.write(self.style.WARNING(f'  Not found: {title} - {artist}'))
 
-        # Bulk create tracks
-        tracks = [Track(**data) for data in tracks_data]
-        Track.objects.bulk_create(tracks)
+            time.sleep(0.5)  # Rate limit: don't spam the API
 
-        self.stdout.write(
-            self.style.SUCCESS(f'Successfully created {len(tracks)} tracks!')
-        )
+        self.stdout.write(self.style.SUCCESS(f'\nDone! Created {created}/{len(TRACK_NAMES)} tracks.'))
+
+    def fetch_from_jamendo(self, title, artist, client_id):
+        try:
+            res = requests.get('https://api.jamendo.com/v3.0/tracks/', params={
+                'client_id': client_id,
+                'format': 'json',
+                'limit': 1,
+                'search': f'{title} {artist}',
+                'include': 'musicinfo',
+            })
+            data = res.json()
+            results = data.get('results', [])
+
+            if not results:
+                return None
+
+            track = results[0]
+            tags = track.get('musicinfo', {}).get('tags', {})
+            genre = (tags.get('genres', [None]) or [None])[0] or 'Unknown'
+
+            return {
+                'title': track['name'],
+                'artist': track['artist_name'],
+                'album': track.get('album_name', ''),
+                'duration_seconds': int(track['duration']),
+                'genre': genre.capitalize(),
+                'audio_url': track['audio'],
+                'cover_url': track['album_image'],
+            }
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f'  API error for {title}: {e}'))
+            return None

@@ -4,10 +4,10 @@ from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import api_view, permission_classes
 from django.db import transaction
-from .models import Track, PlaylistTrack, Vote
+from .models import Track, PlaylistTrack, Vote, History
 from django.db.models import Exists, OuterRef
 from django.contrib.auth.models import User
-from .serializers import UserSerializer, TrackSerializer, PlaylistTrackSerializer
+from .serializers import UserSerializer, TrackSerializer, PlaylistTrackSerializer, HistorySerializer
 from .utils import calculate_position
 
 # ####AUTH
@@ -15,7 +15,14 @@ from .utils import calculate_position
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes= [AllowAny] 
+    permission_classes= [AllowAny]
+    
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data) 
 
 class TrackListView(APIView):
     def get(self, request, format=None):
@@ -92,6 +99,22 @@ class PlaylistDownvoteView(APIView):
         playlist_item.votes -= 1
         playlist_item.save()
         serializer = PlaylistTrackSerializer(playlist_item)
+        return Response(serializer.data)
+    
+class HistoryListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        history_tracks = History.objects.all()
+        serializer = HistorySerializer(history_tracks, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        playlist_track_id = request.data.get('playlist_track_id')
+        playlist_track = PlaylistTrack.objects.get(id=playlist_track_id)
+        
+        history_track_item = History.objects.create(playlist_track=playlist_track, user=request.user)
+        serializer = HistorySerializer(history_track_item)
         return Response(serializer.data)
 
         

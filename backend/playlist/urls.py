@@ -3,7 +3,8 @@ from django.urls import path
 from . import views
 
 
-urlpatterns = [    
+urlpatterns = [   
+    path('user/me/', views.CurrentUserView.as_view()),
     # tracks library
     #path('tracks/', views.TrackListCreate.as_view(),name="track-list"),
     # path('tracks/', views.get_tracks, name='get_tracks'),
@@ -17,6 +18,8 @@ urlpatterns = [
     path('playlist/delete/<int:pk>/', views.PlaylistDetailView.as_view()),
     path('playlist/upvote/<int:pk>/', views.PlaylistUpvoteView.as_view()),
     path('playlist/downvote/<int:pk>/', views.PlaylistDownvoteView.as_view()), 
+    
+    path('history/', views.HistoryListCreateView.as_view()),
     
     # path('playlist/', views.get_playlist, name="get_playlist"),
     # path('playlist/add/', views.add_to_playlist, name='add_to_playlist'),

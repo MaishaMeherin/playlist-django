@@ -12,6 +12,7 @@ class Track(models.Model):
     album = models.CharField(max_length=200, blank=True)
     duration_seconds = models.IntegerField()
     genre = models.CharField(max_length=50)
+    audio_url = models.URLField(blank=True, null=True)
     cover_url = models.URLField(blank=True, null=True)
     
     # Created/updated timestamps
@@ -46,7 +47,6 @@ class PlaylistTrack(models.Model):
     votes = models.IntegerField(default=0)
     added_at = models.DateTimeField(auto_now_add=True)
     is_playing = models.BooleanField(default=False)
-    played_at = models.DateTimeField(null=True, blank=True)
     
 #     class Meta:
 #         ordering = ['position']  # Auto-sort by position
@@ -61,3 +61,21 @@ class Vote(models.Model):
     
     #class Meta:
         #unique_together = ['user', 'playlist_track']
+        
+class History(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete = models.CASCADE,
+        related_name='history_items'
+    )
+    playlist_track = models.ForeignKey(
+        PlaylistTrack,
+        on_delete=models.CASCADE,
+        related_name='history_entries'
+    )
+    
+    played_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.playlist_track.track.title} - {self.user.username}"
+    

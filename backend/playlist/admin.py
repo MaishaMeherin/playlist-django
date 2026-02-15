@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Track, PlaylistTrack, Vote
+from .models import Track, PlaylistTrack, Vote, History
 
 # # Register your models here.
 admin.site.register(Track)
@@ -24,6 +24,7 @@ admin.site.register(Track)
     
 admin.site.register(PlaylistTrack)
 admin.site.register(Vote)
+admin.site.register(History)
 # class PlaylistTrackAdmin(admin.ModelAdmin):
 #     """
 #         Configure how PlaylistTrack appears in admin panel.
