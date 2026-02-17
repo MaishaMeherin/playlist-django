@@ -1,81 +1,155 @@
 import { useState, useEffect } from "react";
 import api from "../api";
 import { Button, Card } from "antd";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 function Home() {
-  const [username, setUsername] = useState(null);
-  const [tracks, setTracks] = useState([]);
-  const [playlist, setPlaylist] = useState([]);
-  const [history, setHistory] = useState([]);
+  // const [username, setUsername] = useState(null);
+  // const [tracks, setTracks] = useState([]);
+  // const [playlist, setPlaylist] = useState([]);
+  // const [history, setHistory] = useState([]);
+
+  const queryClient = useQueryClient();
+
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState("playlist");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    getTracks();
-    getPlaylist();
-    getUsername();
-    getHistory();
-  }, []);
+  // useEffect(() => {
+  //   getTracks();
+  //   getPlaylist();
+  //   getUsername();
+  //   getHistory();
+  // }, []);
 
-  const getTracks = async () => {
-    const res = await api.get("/api/tracks/");
-    setTracks(res.data);
-  };
+  /* 
+    /api/tracks/, /api/playlist/, /api/history/ -> all return arrays. We store the array in state and then .map() over it
 
-  const getPlaylist = async () => {
-    const res = await api.get("/api/playlist/");
-    setPlaylist(res.data);
-  };
+    /api/user/me/ -> returns a single object
+  */
+  // const getTracks = async () => {
+  //   const res = await api.get("/api/tracks/");
+  //   setTracks(res.data);
+  // };
 
-  const getUsername = async () => {
-    const res = await api.get("/api/user/me/");
-    setUsername(res.data.username);
-  };
+  // const getPlaylist = async () => {
+  //   const res = await api.get("/api/playlist/");
+  //   setPlaylist(res.data);
+  // };
 
-  const getHistory = async () => {
-    const res = await api.get("/api/history/");
-    setHistory(res.data);
-  };
+  // const getUsername = async () => {
+  //   const res = await api.get("/api/user/me/");
+  //   setUsername(res.data.username);
+  // };
 
-  const addTracksToPlaylist = async (trackId) => {
-    const res = await api.post("/api/playlist/", { track_id: trackId });
-    await getPlaylist();
-  };
+  // const getHistory = async () => {
+  //   const res = await api.get("/api/history/");
+  //   setHistory(res.data);
+  // };
+
+  //using react query
+  const { data: tracks = [], isLoading: tracksLoading } = useQuery({
+    queryKey: ["tracks"],
+    queryFn: () => api.get("/api/tracks/").then((res) => res.data),
+  });
+
+  const { data: playlist = [], isLoading: playlistLoading } = useQuery({
+    queryKey: ["playlist"],
+    queryFn: () => api.get("/api/playlist/").then((res) => res.data),
+  });
+
+  const { data: history = [], isLoading: historyLoading } = useQuery({
+    queryKey: ["history"],
+    queryFn: () => api.get("/api/history/").then((res) => res.data),
+  });
+
+  const { data: username, isLoading: usernameLoading } = useQuery({
+    queryKey: ["username"],
+    queryFn: () => api.get("/api/user/me/").then((res) => res.data.username),
+  });
+
+  const addToPlaylistMutation = useMutation({
+    mutationFn: (trackId) =>
+      api.post("/api/playlist/", {
+        track_id: trackId,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlist"] }),
+  });
 
   const isInPlaylist = (trackId) =>
     playlist.some((item) => item.track.id === trackId);
 
-  const deleteFromPlaylist = async (playlistTrackId) => {
-    await api.delete(`/api/playlist/delete/${playlistTrackId}/`);
-    await getPlaylist();
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/api/playlist/delete/${id}/`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlist"] }),
+  });
 
-  const addTracksToHistory = async (playlistTrackId) => {
-    await api.post("/api/history/", {
-      playlist_track_id: playlistTrackId,
-    });
-    await getHistory();
-  };
+  const upvoteMutation = useMutation({
+    mutationFn: ({ id, userId }) =>
+      api.put(`/api/playlist/upvote/${id}/`, { user_id: userId }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["playlist"],
+      }),
+  });
 
-  const upvotePlaylistTrack = async (playlistTrackId, userId) => {
-    await api.put(`/api/playlist/upvote/${playlistTrackId}/`, {
-      user_id: userId,
-    });
-    await getPlaylist();
-    console.log(playlist);
-  };
+  const downvoteMutation = useMutation({
+    mutationFn: ({ id, userId }) =>
+      api.put(`/api/playlist/downvote/${id}/`, { user_id: userId }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["playlist"],
+      }),
+  });
 
-  // const isAlreadyUpvoted = (userId) => {
-  //   playlist.some((item) => item.user.id === userId);
-  // }
+  const historyMutation = useMutation({
+    mutationFn: (playlistTrackId) =>
+      api.post("/api/history/", { playlist_track_id: playlistTrackId }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["history"],
+      }),
+  });
+  
+  // const addTracksToPlaylist = async (trackId) => {
+  //   const res = await api.post("/api/playlist/", { track_id: trackId });
+  //   await getPlaylist();
+  // };
 
-  const downvotePlaylistTrack = async (playlistTrackId, userId) => {
-    await api.put(`/api/playlist/downvote/${playlistTrackId}/`, {
-      user_id: userId,
-    });
-    await getPlaylist();
-  };
+  // const deleteFromPlaylist = async (playlistTrackId) => {
+  //   await api.delete(`/api/playlist/delete/${playlistTrackId}/`);
+  //   await getPlaylist();
+  // };
+
+  // const addTracksToHistory = async (playlistTrackId) => {
+  //   await api.post("/api/history/", {
+  //     playlist_track_id: playlistTrackId,
+  //   });
+  //   await getHistory();
+  // };
+
+  // const upvotePlaylistTrack = async (playlistTrackId, userId) => {
+  //   await api.put(`/api/playlist/upvote/${playlistTrackId}/`, {
+  //     user_id: userId,
+  //   });
+  //   await getPlaylist();
+  //   console.log(playlist);
+  // };
+
+  // const downvotePlaylistTrack = async (playlistTrackId, userId) => {
+  //   await api.put(`/api/playlist/downvote/${playlistTrackId}/`, {
+  //     user_id: userId,
+  //   });
+  //   await getPlaylist();
+  // };
+
+  const filteredTracks = tracks.filter(
+    (track) =>
+      track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      track.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      track.genre.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <>
@@ -130,8 +204,23 @@ function Home() {
         {/* Left side - Track Library */}
         <div style={{ flex: 1 }}>
           <h2>Track Library</h2>
+          <input
+            type="text"
+            placeholder="Search by title, artist, or genre..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              marginBottom: "16px",
+              borderRadius: "4px",
+              border: "1px solid #d9d9d9",
+              fontSize: "14px",
+            }}
+          />
+
           <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
-            {tracks.map((track) => (
+            {filteredTracks.map((track) => (
               <Card key={track.id} title={track.title} style={{ width: 280 }}>
                 <p>Artist: {track.artist}</p>
                 <p>Album: {track.album}</p>
@@ -139,13 +228,14 @@ function Home() {
                 <p>Genre: {track.genre}</p>
                 <Button
                   type="primary"
-                  onClick={() => addTracksToPlaylist(track.id)}
+                  onClick={() => addToPlaylistMutation.mutate(track.id)}
                   disabled={isInPlaylist(track.id)}
                 >
                   Add to Playlist
                 </Button>
               </Card>
             ))}
+            {filteredTracks.length === 0 && <p>No tracks found.</p>}
           </div>
         </div>
 
@@ -186,7 +276,12 @@ function Home() {
                     <Button
                       type="primary"
                       style={{ flex: 1 }}
-                      onClick={() => upvotePlaylistTrack(item.id, item.user.id)}
+                      onClick={() =>
+                        upvoteMutation.mutate({
+                          id: item.id,
+                          userId: item.user.id,
+                        })
+                      }
                       disabled={item.has_voted}
                     >
                       Upvote
@@ -195,7 +290,10 @@ function Home() {
                       type="primary"
                       style={{ flex: 1 }}
                       onClick={() =>
-                        downvotePlaylistTrack(item.id, item.user.id)
+                        downvoteMutation.mutate({
+                          id: item.id,
+                          userId: item.user.id,
+                        })
                       }
                       disabled={item.has_voted}
                     >
@@ -205,7 +303,7 @@ function Home() {
                   <Button
                     type="primary"
                     danger
-                    onClick={() => deleteFromPlaylist(item.id)}
+                    onClick={() => deleteMutation.mutate(item.id)}
                     style={{ width: "100%" }}
                   >
                     Delete
@@ -216,7 +314,7 @@ function Home() {
                     onClick={() => {
                       setCurrentTrack(item.track);
                       setIsPlaying(true);
-                      addTracksToHistory(item.id);
+                      historyMutation.mutate(item.id);
                     }}
                   >
                     {currentTrack?.id === item.track.id && isPlaying

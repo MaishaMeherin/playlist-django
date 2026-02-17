@@ -22,7 +22,7 @@ class CurrentUserView(APIView):
     
     def get(self, request):
         serializer = UserSerializer(request.user)
-        return Response(serializer.data) 
+        return Response(serializer.data)
 
 class TrackListView(APIView):
     def get(self, request, format=None):
